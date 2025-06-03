@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Entrenar Modelo Tres en Raya</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+  </head>
+  <body>
+    <h1>Entrenamiento de Modelo Tres en Raya</h1>
+    <button onclick="entrenar()">Entrenar y Descargar Modelo</button>
+    <pre id="log"></pre>
+
+    <script>
+      async function entrenar() {
+        const log = document.getElementById("log");
+        const escribir = (texto) => (log.textContent += texto + "\n");
+
+        escribir("📊 Preparando datos...");
+
+        // Entradas: estados del tablero (pueden agregarse más ejemplos)
+        const xs = tf.tensor2d([
+          [0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [1, 0, 0, 0, -1, 0, 0, 0, 0],
+          [1, 1, 0, 0, -1, -1, 0, 0, 0],
+        ]);
+
+        // Salidas: jugadas recomendadas (1 donde debería jugar la IA)
+        const ys = tf.tensor2d([
+          [0, 0, 1, 0, 0, 0, 0, 0, 0],  // jugar en posición 2
+          [0, 0, 0, 0, 0, 0, 1, 0, 0],  // jugar en posición 6
+          [0, 0, 0, 0, 0, 0, 0, 0, 1],  // jugar en posición 8
+        ]);
+
+        escribir("⚙️ Creando modelo...");
+
+        const model = tf.sequential();
+        model.add(tf.layers.dense({ inputShape: [9], units: 18, activation: 'relu' }));
+        model.add(tf.layers.dense({ units: 9, activation: 'softmax' }));
+
+        model.compile({
+          optimizer: 'adam',
+          loss: 'categoricalCrossentropy',
+          metrics: ['accuracy'],
+        });
+
+        escribir("🏋 Entrenando...");
+        await model.fit(xs, ys, {
+          epochs: 200,
+          callbacks: {
+            onEpochEnd: (epoch, logs) => {
+              if (epoch % 50 === 0) escribir(`Epoch ${epoch} - loss: ${logs.loss.toFixed(4)}`);
+            },
+          },
+        });
+
+        escribir("✅ Modelo entrenado.");
+
+        escribir("💾 Descargando modelo...");
+        await model.save('downloads://ttt_model');
+        escribir("📦 ¡Modelo descargado como ttt_model.json y .bin!");
+      }
+    </script>
+  </body>
+</html>

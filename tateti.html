@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tres en Raya IA</title>
+    <style>
+      table {
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      td {
+        width: 60px;
+        height: 60px;
+        text-align: center;
+        vertical-align: middle;
+        font-size: 2em;
+        border: 2px solid #333;
+        cursor: pointer;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+  </head>
+  <body>
+    <h1>🧠 Tres en Raya vs IA</h1>
+    <p>Jugás con <strong>X</strong>. La IA es <strong>O</strong>.</p>
+    <table id="board"></table>
+    <p id="estado"></p>
+
+    <script>
+      const modelPath = 'model/ttt_model.json';
+      let model;
+      let board = Array(9).fill(0); // 0: vacío, 1: humano (X), -1: IA (O)
+      let gameOver = false;
+
+      async function cargarModelo() {
+        model = await tf.loadLayersModel(modelPath);
+        crearTablero();
+        actualizarVista();
+      }
+
+      function crearTablero() {
+        const tabla = document.getElementById("board");
+        tabla.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+          const fila = document.createElement("tr");
+          for (let j = 0; j < 3; j++) {
+            const idx = i * 3 + j;
+            const celda = document.createElement("td");
+            celda.onclick = () => jugar(idx);
+            celda.id = `cell-${idx}`;
+            fila.appendChild(celda);
+          }
+          tabla.appendChild(fila);
+        }
+      }
+
+      function actualizarVista() {
+        for (let i = 0; i < 9; i++) {
+          const celda = document.getElementById(`cell-${i}`);
+          celda.textContent = board[i] === 1 ? "X" : board[i] === -1 ? "O" : "";
+        }
+      }
+
+      function jugar(idx) {
+        if (board[idx] !== 0 || gameOver) return;
+        board[idx] = 1;
+        actualizarVista();
+
+        if (checkGanador(1)) {
+          mostrarMensaje("Ganaste 🎉");
+          terminarYReiniciar();
+          return;
+        }
+
+        if (board.every(v => v !== 0)) {
+          mostrarMensaje("Empate 🤝");
+          terminarYReiniciar();
+          return;
+        }
+
+        setTimeout(turnoIA, 500);
+      }
+
+      function turnoIA() {
+        const entrada = tf.tensor2d([board]);
+        const pred = model.predict(entrada);
+        const data = pred.dataSync();
+        entrada.dispose();
+        pred.dispose();
+
+        const posibles = board.map((v, i) => (v === 0 ? data[i] : -Infinity));
+        const mejor = posibles.indexOf(Math.max(...posibles));
+        if (mejor !== -1) {
+          board[mejor] = -1;
+          actualizarVista();
+        }
+
+        if (checkGanador(-1)) {
+          mostrarMensaje("La IA gana 🤖");
+          terminarYReiniciar();
+        } else if (board.every(v => v !== 0)) {
+          mostrarMensaje("Empate 🤝");
+          terminarYReiniciar();
+        }
+      }
+
+      function checkGanador(jugador) {
+        const ganar = [
+          [0, 1, 2], [3, 4, 5], [6, 7, 8],
+          [0, 3, 6], [1, 4, 7], [2, 5, 8],
+          [0, 4, 8], [2, 4, 6]
+        ];
+        return ganar.some(comb => comb.every(i => board[i] === jugador));
+      }
+
+      function mostrarMensaje(msg) {
+        document.getElementById("estado").textContent = msg;
+      }
+
+      function terminarYReiniciar() {
+        gameOver = true;
+        setTimeout(() => {
+          reset();
+        }, 2000);
+      }
+
+      function reset() {
+        board = Array(9).fill(0);
+        gameOver = false;
+        document.getElementById("estado").textContent = "";
+        actualizarVista();
+      }
+
+      cargarModelo();
+    </script>
+  </body>
+</html>
